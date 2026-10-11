@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090d1a">
+  <meta name="description" content="Analyze social media text with sentiment analysis and machine learning.">
+  <title>Signal / Cyberbullying Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="Signal home"><span class="brand-mark"><i></i><i></i><i></i></span><span>SIGNAL<span class="brand-dot">/</span></span></a>
+    <nav aria-label="Main navigation"><a href="#analyzer">Dashboard</a><a href="#workflow">How it works</a><a href="#about">About</a></nav>
+    <div class="connection"><span class="status-dot" id="status-dot"></span><span id="api-status">Checking model</span></div>
+  </header>
+
+  <main id="top">
+    <section class="hero shell">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="pulse"></span> SOCIAL SAFETY INTELLIGENCE</div>
+        <h1>Detect harmful language.<br><span>Build safer communities.</span></h1>
+        <p>Read the signals in social text. A locally trained machine learning model pairs language patterns with sentiment to flag potentially harmful content.</p>
+        <a class="text-link" href="#analyzer">Open the analyzer <span aria-hidden="true">↘</span></a>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="orbit orbit-a"></div><div class="orbit orbit-b"></div><div class="orbit orbit-c"></div>
+        <div class="core"><div class="core-inner"><span class="core-eye"></span><b>SG</b><small>LIVE SIGNAL</small></div></div>
+        <span class="orbit-tag tag-one">TEXT · 01</span><span class="orbit-tag tag-two">VADER · 02</span><span class="orbit-tag tag-three">MODEL · 03</span>
+      </div>
+      <div class="hero-foot"><span>LANGUAGE · SENTIMENT · CONTEXT</span><span>MODEL STATUS <b id="hero-model-status">INITIALIZING</b></span></div>
+    </section>
+
+    <section id="analyzer" class="shell section-space">
+      <div class="section-heading"><div><div class="eyebrow">01 / ANALYSIS CONSOLE</div><h2>Read a signal</h2></div><span class="section-note">Your text is analyzed in this session and is not stored.</span></div>
+      <div class="analyzer-grid">
+        <article class="glass input-card">
+          <div class="card-top"><div><span class="micro-label">INPUT STREAM</span><h3>Social text analyzer</h3></div><span class="live-pill"><i></i> READY</span></div>
+          <label class="sr-only" for="post-text">Text to analyze</label>
+          <textarea id="post-text" maxlength="5000" placeholder="Paste a post or message to analyze…" spellcheck="true"></textarea>
+          <div class="input-meta"><span id="char-count">0 / 5,000</span><button class="sample-button" id="example-button" type="button">Try an example <span>↗</span></button></div>
+          <div class="input-actions"><button class="button-primary" id="analyze-button" type="button"><span>Analyze text</span><span aria-hidden="true">→</span></button><button class="button-quiet" id="clear-button" type="button">Clear</button></div>
+          <p class="form-error" id="form-error" role="alert" hidden></p>
+        </article>
+        <article class="glass result-card" aria-live="polite" aria-atomic="true">
+          <div class="card-top"><div><span class="micro-label">MODEL OUTPUT</span><h3>Analysis result</h3></div><span class="result-icon" aria-hidden="true">✳</span></div>
+          <div id="result-empty" class="result-empty"><div class="empty-orbit">✳</div><p>Your result will appear here</p><span>Submit a text sample to view its predicted category and sentiment profile.</span></div>
+          <div id="result-loading" class="result-empty" hidden><div class="loader"></div><p>Reading language signals</p><span>Running preprocessing, sentiment scoring, and classification.</span></div>
+          <div id="result-content" hidden>
+            <div class="prediction-label"><span class="micro-label">PREDICTED CATEGORY</span><span class="category-badge" id="prediction-category">—</span></div>
+            <div class="result-summary"><div><span class="micro-label">SENTIMENT</span><strong id="sentiment-label">—</strong></div><div id="confidence-wrap"><span class="micro-label">MODEL PROBABILITY</span><strong id="confidence-value">—</strong></div></div>
+            <div class="score-list" id="score-list"></div>
+            <p class="result-disclaimer">A model prediction is a screening signal, not a determination of intent or harm. Sentiment alone does not establish bullying.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="shell section-space" id="performance">
+      <div class="section-heading"><div><div class="eyebrow">02 / MODEL TELEMETRY</div><h2>Measured on held-out data</h2></div><span class="section-note" id="metrics-note">Loading local evaluation…</span></div>
+      <div class="metric-grid" id="metric-grid"><article class="glass metric-card"><span class="micro-label">MODEL</span><strong>—</strong><small>Waiting for local training metrics</small></article></div>
+      <div class="performance-grid">
+        <article class="glass table-card"><div class="card-top"><div><span class="micro-label">EXPERIMENTS</span><h3>Model comparison</h3></div></div><div class="table-scroll"><table><thead><tr><th>Model</th><th>Accuracy</th><th>Macro F1</th><th>Weighted F1</th></tr></thead><tbody id="comparison-body"><tr><td colspan="4" class="muted">Metrics unavailable</td></tr></tbody></table></div></article>
+        <article class="glass matrix-card"><div class="card-top"><div><span class="micro-label">SELECTED MODEL</span><h3>Confusion matrix</h3></div></div><div id="confusion-matrix" class="matrix-wrap"><p class="muted">Waiting for training metrics</p></div><p class="matrix-caption">Rows show true labels. Columns show predicted labels.</p></article>
+      </div>
+    </section>
+
+    <section class="shell section-space" id="workflow">
+      <div class="section-heading"><div><div class="eyebrow">03 / THE PIPELINE</div><h2>From post to signal</h2></div><span class="section-note">A compact, auditable text classification flow</span></div>
+      <div class="workflow-grid">
+        <article class="glass step-card"><span class="step-number">01</span><h3>Normalize</h3><p>Standardize case, links, mentions, and spacing while keeping negation and expressive punctuation.</p></article>
+        <article class="glass step-card"><span class="step-number">02</span><h3>Score sentiment</h3><p>VADER adds negative, neutral, positive, and compound sentiment signals.</p></article>
+        <article class="glass step-card"><span class="step-number">03</span><h3>Extract language</h3><p>Training-fitted TF-IDF turns word and phrase patterns into sparse features.</p></article>
+        <article class="glass step-card"><span class="step-number">04</span><h3>Classify</h3><p>A trained classifier predicts one of the dataset’s six labeled categories.</p></article>
+      </div>
+    </section>
+
+    <section class="shell section-space about-grid" id="about">
+      <div><div class="eyebrow">04 / SCOPE & LIMITATIONS</div><h2>Useful signals.<br><span>Human judgment matters.</span></h2></div>
+      <div class="about-copy"><p>This project uses the supplied 47,692-post cyberbullying dataset and follows the IEEE paper’s sentiment plus machine learning direction. The local model is evaluated on a stratified holdout set; the score shown above is measured here and is separate from the paper’s reported result.</p><p>Text-only classification can miss context, sarcasm, reclaimed language, and conversational history. Use predictions to support review, never as a standalone moderation decision.</p><div class="category-list" id="category-list"><span class="muted">Loading supported categories…</span></div></div>
+    </section>
+  </main>
+
+  <footer class="shell footer" id="footer"><a class="brand" href="#top"><span class="brand-mark"><i></i><i></i><i></i></span><span>SIGNAL<span class="brand-dot">/</span></span></a><span>Research prototype · sentiment + supervised machine learning</span><span>Inspired by Almufareh et al., IEEE Access (2025), DOI 10.1109/ACCESS.2025.3558843</span></footer>
+</body>
+</html>
