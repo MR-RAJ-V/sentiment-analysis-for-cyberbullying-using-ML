@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+from src.splitting import text_group_audit
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA = ROOT / "cyberbullying_tweets.csv"
@@ -30,6 +31,7 @@ def analyze(path: Path = DEFAULT_DATA, reports_dir: Path = ROOT / "reports") -> 
         "label_counts": {str(key): int(value) for key, value in counts.items()},
         "labels": [str(value) for value in counts.index],
         "malformed_rows": int(frame[["tweet_text", "cyberbullying_type"]].isna().any(axis=1).sum()),
+        "text_group_audit": text_group_audit(frame),
     }
     (reports_dir / "data_quality.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     (reports_dir / "data_analysis.txt").write_text(
@@ -38,6 +40,9 @@ def analyze(path: Path = DEFAULT_DATA, reports_dir: Path = ROOT / "reports") -> 
         f"Missing values: {report['missing_by_column']}\nDuplicate rows: {report['duplicate_rows']}\n"+
         f"Repeated text rows: {report['duplicate_text_rows']}\nConflicting-label text groups: "
         f"{report['repeated_text_groups_with_conflicting_labels']}\n"+
+        f"Unique normalized text groups: {report['text_group_audit']['unique_normalized_text_groups']}\n"+
+        f"Normalized groups with conflicting labels: "
+        f"{report['text_group_audit']['normalized_conflicting_label_groups']}\n"+
         f"Blank text rows: {report['blank_text_rows']}\nLabels: {report['label_counts']}\n",
         encoding="utf-8")
     try:

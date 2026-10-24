@@ -1,5 +1,7 @@
 from src.preprocessing import preprocess_text
 from src.sentiment_analysis import sentiment_label, sentiment_scores
+from src.features import TextNormalizer
+from src.features import TextNormalizer
 
 
 def test_preprocessing_normalizes_without_dropping_negation_or_emoji():
@@ -20,3 +22,15 @@ def test_vader_scores_and_labels():
     assert scores["compound"] > 0
     assert sentiment_label(scores["compound"]) == "Positive"
     assert sentiment_label(0) == "Neutral"
+
+
+def test_training_pipeline_normalizer_matches_inference_preprocessing():
+    samples = ["I do NOT agree!!! 😡", "Hello &amp; all @friend"]
+    assert TextNormalizer().fit_transform(samples).tolist() == [
+        preprocess_text(text) for text in samples]
+
+
+def test_training_pipeline_normalizer_matches_inference_preprocessing():
+    samples = ["I do NOT agree!!! 😡", "Hello &amp; all @friend"]
+    assert TextNormalizer().fit_transform(samples).tolist() == [
+        preprocess_text(text) for text in samples]

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from src.predict import DEFAULT_MODEL, load_bundle, predict_text
 
 ROOT = Path(__file__).resolve().parents[1]
 METRICS_PATH = ROOT / "reports" / "metrics.json"
+LOGGER = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -22,7 +24,8 @@ async def lifespan(app: FastAPI):
         app.state.model_error = None
     except Exception as exc:
         app.state.bundle = None
-        app.state.model_error = str(exc)
+        app.state.model_error = f"{type(exc).__name__}: {exc}"
+        LOGGER.exception("Could not load the local prediction model")
     yield
 
 
@@ -47,7 +50,10 @@ async def prediction(payload: PredictionRequest, request: Request):
         raise HTTPException(status_code=503, detail="Prediction model is unavailable. Train the model first.")
     try:
         return predict_text(payload.text, bundle)
-    except Exception:
+    except Exception as exc:
+        # Do not log the submitted text or exception message; both may contain
+        # user content. The exception class is enough to correlate failures.
+        LOGGER.error("Prediction failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Prediction failed. Check the submitted text and try again.")
 
 
@@ -59,4 +65,9 @@ async def model_info():
         data = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {"available": False, "message": "Training metrics could not be loaded."}
+    dataset = data.get("dataset")
+    if isinstance(dataset, dict):
+        dataset.pop("source", None)
+    if "model_artifact" in data:
+        data["model_artifact"] = Path(str(data["model_artifact"])).name
     return {"available": True, **data}
