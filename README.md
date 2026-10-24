@@ -40,7 +40,9 @@ The largest remaining error is confusion between `not_cyberbullying` and `other_
 
 Training writes the model artifact to `models/cyberbullying_model.joblib` and evaluation outputs to `reports/metrics.json`, `reports/model_comparison.csv`, and confusion-matrix files. These generated artifacts are local and are not required in source control.
 
-## Paper-method experiments
+## Optional paper-method comparison
+
+This research-only comparison is retained because reproducing and comparing the paper's methods was explicitly requested for this project. It is isolated from production: `src.train_models` alone selects and saves the model used by `src.predict` and the API. Paper experiment results cannot alter the production artifact or model selection.
 
 The full bounded comparison has been run with:
 
@@ -79,6 +81,12 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 python -m src.data_analysis
 python -m src.train_models
+```
+
+After training, classify a post directly through the same saved production pipeline:
+
+```bash
+python -m src.predict "You are such an idiot."
 ```
 
 Start the API in one terminal:

@@ -12,7 +12,6 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.base import clone
-from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (accuracy_score, classification_report,
                              confusion_matrix, f1_score, precision_score,
@@ -23,7 +22,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.svm import LinearSVC
 
 from src.data_analysis import DEFAULT_DATA, analyze
-from src.features import text_feature_union
+from src.features import TextNormalizer, text_feature_union
 from src.preprocessing import preprocess_text
 from src.sentiment_analysis import sentiment_scores
 from src.splitting import (group_class_counts, prepare_text_groups,
@@ -41,6 +40,7 @@ def make_pipeline(estimator, *, include_char: bool = False,
                   word_max_features: int = 50000,
                   char_max_features: int = 40000) -> Pipeline:
     return Pipeline([
+        ("normalize", TextNormalizer()),
         ("features", text_feature_union(include_char=include_char,
             include_sentiment=include_sentiment,
             word_max_features=word_max_features,
@@ -131,9 +131,9 @@ def train(data_path: Path = DEFAULT_DATA) -> dict:
         raise ValueError("No usable labeled, nonblank text rows were found")
 
     y = frame["cyberbullying_type"].to_numpy()
-    # Normalization is deterministic and corpus-independent; compute it once.
-    # Learned vocabulary/IDF remain inside each CV fold's pipeline.
-    texts = frame["normalized_text"].to_numpy()
+    # Pipelines own deterministic normalization and learned feature fitting.
+    # Groups use the same normalized values to isolate equivalent texts.
+    texts = frame["tweet_text"].to_numpy()
     groups = frame["normalized_text"].to_numpy()
     labels = sorted(frame["cyberbullying_type"].unique().tolist())
     train_indices, test_indices = stratified_group_holdout(y, groups, seed=SEED)
@@ -224,25 +224,6 @@ def train(data_path: Path = DEFAULT_DATA) -> dict:
         conflict_policy_diagnostic["metrics"] = metric_summary(
             conflict_model, texts[test_indices], y_test, labels)
 
-    # Secondary, predeclared policy check: train a clone without ambiguous
-    # normalized-text groups, but keep every test row for evaluation.
-    labels_per_group = frame.groupby("normalized_text")["cyberbullying_type"].nunique()
-    conflicting_groups = set(labels_per_group[labels_per_group > 1].index)
-    train_unambiguous = np.asarray([group not in conflicting_groups
-                                    for group in train_groups], dtype=bool)
-    conflict_policy_diagnostic = {
-        "policy": "Exclude conflicting normalized-text groups from training; keep the complete test set.",
-        "training_rows_removed": int((~train_unambiguous).sum()),
-        "training_groups_removed": int(len(set(train_groups[~train_unambiguous]))),
-        "test_rows_removed": 0,
-        "metrics": None,
-    }
-    if train_unambiguous.any() and len(np.unique(y_train[train_unambiguous])) == len(labels):
-        conflict_model = clone(selected_model)
-        conflict_model.fit(texts[train_indices][train_unambiguous], y_train[train_unambiguous])
-        conflict_policy_diagnostic["metrics"] = metric_summary(
-            conflict_model, texts[test_indices], y_test, labels)
-
     all_negative_test_indices = [index for index, text in enumerate(texts[test_indices])
                                  if sentiment_scores(preprocess_text(text))["compound"] < 0]
     negative_diagnostic = {
@@ -306,10 +287,6 @@ def train(data_path: Path = DEFAULT_DATA) -> dict:
             "selected_model": selected_metrics,
             "current_configuration_baseline": baseline_metrics,
         },
-        "evaluation_metrics": {
-            "selected_model": selected_metrics,
-            "current_configuration_baseline": baseline_metrics,
-        },
     }
     joblib.dump(bundle, MODEL_DIR / "cyberbullying_model.joblib", compress=3)
 
@@ -325,7 +302,7 @@ def train(data_path: Path = DEFAULT_DATA) -> dict:
             "word_tfidf": "unigrams and bigrams; max_features=50000; min_df=2; sublinear_tf",
             "character_tfidf": "char_wb 3-5 grams; candidate-only; max_features=40000",
             "sentiment": ["negative", "neutral", "positive", "compound"],
-            "normalization": "Deterministic normalization is applied once with preprocess_text before split/CV; vectorizers are fitted only within CV folds.",
+            "normalization": "The same deterministic normalizer is the first step of every training, validation, and inference pipeline; vectorizers are fitted only within CV folds.",
         },
         "primary_selection_metric": "macro_f1",
         "baseline": {

@@ -2,6 +2,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from backend import main as backend_main
 from backend.main import app
 from src.predict import DEFAULT_MODEL, load_bundle, predict_text
 
@@ -25,15 +26,24 @@ async def test_final_model_serves_a_real_api_prediction():
     if not DEFAULT_MODEL.exists():
         pytest.skip("Train the model for integration coverage")
     previous = getattr(app.state, "bundle", None)
-    app.state.bundle = load_bundle()
+    previous_error = getattr(app.state, "model_error", None)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app),
-                               base_url="http://testserver") as client:
-            response = await client.post("/predict", json={
-                "text": "People should support and care for one another."})
-        assert response.status_code == 200
-        body = response.json()
-        assert body["category"] in app.state.bundle["labels"]
-        assert set(body["sentiment_scores"]) == {"negative", "neutral", "positive", "compound"}
+        async with backend_main.lifespan(app):
+            async with AsyncClient(transport=ASGITransport(app=app),
+                                   base_url="http://testserver") as client:
+                health = await client.get("/health")
+                response = await client.post("/predict", json={
+                    "text": "People should support and care for one another."})
+                info = await client.get("/model-info")
+            assert health.status_code == 200
+            assert health.json() == {"status": "ok", "model_loaded": True}
+            assert response.status_code == 200
+            body = response.json()
+            assert body["category"] in app.state.bundle["labels"]
+            assert set(body["sentiment_scores"]) == {
+                "negative", "neutral", "positive", "compound"}
+            assert info.status_code == 200
+            assert info.json()["available"] is True
     finally:
         app.state.bundle = previous
+        app.state.model_error = previous_error

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy.sparse import csr_matrix, hstack
+from scipy.sparse import csr_matrix
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import FeatureUnion
@@ -56,7 +56,3 @@ def text_feature_union(*, include_char: bool = False, include_sentiment: bool = 
 def sentiment_matrix(texts: list[str]):
     rows = [[sentiment_scores(text)[key] for key in SENTIMENT_COLUMNS] for text in texts]
     return csr_matrix(np.asarray(rows, dtype=np.float32))
-
-
-def combine_features(text_features, texts: list[str]):
-    return hstack([text_features, sentiment_matrix(texts)], format="csr", dtype=np.float32)

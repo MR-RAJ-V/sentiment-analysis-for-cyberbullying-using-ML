@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import time
@@ -40,6 +41,34 @@ WORD_RE = re.compile(r"[a-z]+(?:'[a-z]+)?")
 STEMMER = PorterStemmer()
 CONFIG_KEYS = ("data_variant", "model", "smote")
 PROTOCOL_VERSION = "fold-fitted-vectorizer-grouped-cv-v2"
+
+
+def execution_scope(*, filter_only: bool, smoke: bool,
+                    has_previous_full_report: bool) -> tuple[str, str]:
+    """Describe report contents and the most recent execution separately."""
+    if smoke:
+        scope = "smoke; 6,000-row stratified sample and SVM only"
+        return scope, scope
+    if filter_only and has_previous_full_report:
+        return (
+            "paper-method approximation; all-post rows retained and negative-polarity rows refreshed",
+            "filter-only; negative-polarity SVM and Extra Trees",
+        )
+    if filter_only:
+        scope = "filter-only; negative-polarity SVM and Extra Trees"
+        return scope, scope
+    scope = "paper-method approximation; all-post and negative-polarity rows"
+    return scope, scope
+
+
+def previous_report_matches_source(report: dict, source_sha256: str,
+                                   source_rows: int) -> bool:
+    """Only merge old rows when their data and experiment protocol match."""
+    return (
+        report.get("protocol_version") == PROTOCOL_VERSION
+        and report.get("source_sha256") == source_sha256
+        and report.get("source_rows") == source_rows
+    )
 
 
 def paper_preprocess(value: str) -> str:
@@ -172,14 +201,20 @@ def run(data_path: Path = DEFAULT_DATA, *, filter_only: bool = False,
     REPORT_DIR.mkdir(exist_ok=True)
     report_path = REPORT_DIR / "paper_experiments.json"
     csv_path = REPORT_DIR / "paper_experiments.csv"
+    raw = pd.read_csv(data_path)
+    source_sha256 = hashlib.sha256(data_path.read_bytes()).hexdigest()
     previous = {}
     if filter_only and report_path.exists():
-        previous = json.loads(report_path.read_text(encoding="utf-8"))
-        if previous.get("protocol_version") != PROTOCOL_VERSION:
-            # Older rows were produced with a vectorizer fitted before CV and
-            # are invalid under this protocol; do not retain them as comparable.
+        candidate_previous = json.loads(report_path.read_text(encoding="utf-8"))
+        if previous_report_matches_source(candidate_previous, source_sha256, len(raw)):
+            previous = candidate_previous
+        else:
+            # Do not merge stale rows or reports made with an older protocol.
             previous = {}
-    raw = pd.read_csv(data_path)
+    has_previous_full_report = any(
+        row.get("data_variant") == "all_posts"
+        for row in previous.get("models", [])
+    )
     frame = prepare_text_groups(raw)
     if smoke:
         sample_size = min(6000, len(frame))
@@ -240,10 +275,12 @@ def run(data_path: Path = DEFAULT_DATA, *, filter_only: bool = False,
     overlap = set(normalized_groups[train_ids]).intersection(normalized_groups[test_ids])
     report = {
         "protocol_version": PROTOCOL_VERSION,
-        "run_scope": ("smoke; 6,000-row stratified sample and SVM only" if smoke else
-                      "filter-only; negative-polarity SVM and Extra Trees" if filter_only else
-                      "paper-method approximation"),
+        "run_scope": execution_scope(filter_only=filter_only, smoke=smoke,
+                                      has_previous_full_report=has_previous_full_report)[0],
+        "last_run_scope": execution_scope(filter_only=filter_only, smoke=smoke,
+                                          has_previous_full_report=has_previous_full_report)[1],
         "source_name": Path(data_path).name,
+        "source_sha256": source_sha256,
         "source_rows": int(len(raw)), "rows_used": int(len(frame)),
         "split": "70:30 stratified row split to mirror paper description; group overlap is measured",
         "random_seed": SEED,
@@ -266,10 +303,13 @@ def run(data_path: Path = DEFAULT_DATA, *, filter_only: bool = False,
         "models": rows,
     }
     if filter_only and previous:
-        # Preserve unrelated full-data runs and the original split metadata.
+        # Preserve compatible split/data metadata and unrelated full-data rows.
         for key, value in previous.items():
-            if key != "models":
+            if key not in {"models", "run_scope", "last_run_scope"}:
                 report[key] = value
+        report["run_scope"], report["last_run_scope"] = execution_scope(
+            filter_only=True, smoke=False,
+            has_previous_full_report=has_previous_full_report)
         report["models"] = rows
     if smoke:
         report_path = REPORT_DIR / "paper_experiments_smoke.json"
