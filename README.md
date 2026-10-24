@@ -57,6 +57,12 @@ These are measured results from this project’s fixed-seed, 33,358-post trainin
 | TF-IDF only · Complement NB | 77.70% | 0.7592 | 0.7599 |
 | TF-IDF + VADER · Extra Trees | 80.54% | 0.8045 | 0.8053 |
 
+### Paper-method experiment
+
+Run `python -m src.paper_experiments` to reproduce the paper's stated 70:30 split, TF-IDF + four VADER features, training-only SMOTE comparison, and classifier sweep. The best full-dataset result in this bounded search was Linear SVM + SMOTE at 84.07% accuracy, 0.8380 macro F1, and 0.8389 weighted F1. Extra Trees + SMOTE reached 81.65% accuracy and 0.8152 macro F1. The paper's strict negative-polarity subset reached 88.61% accuracy with Linear SVM and no SMOTE; this evaluates only 29,706 retained posts, so it is not a full-dataset accuracy comparison. SMOTE slightly lowered that subset score.
+
+This experiment is an approximation: the paper does not provide its split seed or parameter grids. It uses a small two-fold grid search; the row split places 721 repeated-text groups on both sides. The negative-only comparison covers Linear SVM and Extra Trees. NLTK data needed for exact lemmatization was unavailable, so Porter stemming and Unicode emoji names were used as local substitutes. XGBoost was unavailable and was skipped. Gradient Boosting used a 10,000-row stratified training subset after SVD to keep the run tractable. Full per-model results are in `reports/paper_experiments.csv` and `reports/paper_experiments.json`. The deployed model and its group-split evaluation are unchanged.
+
 The dataset has substantial label disagreement for repeated text: 1,639 repeated-text groups have multiple target labels. The model also confuses `not_cyberbullying` with `other_cyberbullying` more often than the other categories. Treat this as a limitation of the data and use the predictions as review support.
 
 ## Run the app
